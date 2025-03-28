@@ -1,8 +1,8 @@
 streamlit
 pandas
-numpy
+joblib
+boto3
 matplotlib
 seaborn
+openpyxl
 scikit-learn
-joblib
-tensorflow
