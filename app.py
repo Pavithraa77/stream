@@ -4,15 +4,16 @@ import numpy as np
 import joblib
 import pickle
 import math
+import traceback
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 from tensorflow.keras.models import load_model
 
+# Clear cache to prevent conflicts
 st.cache_resource.clear()
 st.cache_data.clear()
-
 
 # ------ Helper Functions ------
 def create_dataset(data, time_step=1):
@@ -38,9 +39,22 @@ def load_anomaly_model():
 
 @st.cache_resource
 def load_lstm_model():
-    with open("lstm_model1.pkl", "rb") as f:
-        lstm_model = pickle.load(f)
-
+    try:
+        # Attempt to load the pickle model
+        with open("lstm_model1.pkl", "rb") as f:
+            lstm_model = pickle.load(f)
+        st.success("✅ LSTM model (pickle) loaded successfully!")
+    except Exception as e:
+        st.error(f"❌ Error loading LSTM pickle model: {e}")
+        st.text(traceback.format_exc())
+        st.warning("⚠️ Attempting to load TensorFlow H5 model instead...")
+        try:
+            lstm_model = load_model("lstm_model.h5")
+            st.success("✅ LSTM model (H5) loaded successfully!")
+        except Exception as e:
+            st.error(f"❌ Failed to load H5 model as well: {e}")
+            st.text(traceback.format_exc())
+            return None
     return lstm_model
 
 # ------ Streamlit UI ------
@@ -74,29 +88,32 @@ st.pyplot(fig)
 # ------ LSTM Prediction ------
 st.header("🔮 Usage Prediction (LSTM)")
 
-quantity_data = data[["usage"]].values
-scaler = MinMaxScaler(feature_range=(0, 1))
-scaled_data = scaler.fit_transform(quantity_data)
-
-time_step = 10
-X, y = create_dataset(scaled_data, time_step)
-X = X.reshape(X.shape[0], X.shape[1], 1)
-
 lstm_model = load_lstm_model()
-predictions = lstm_model.predict(X)
+if lstm_model:
+    quantity_data = data[["usage"]].values
+    scaler = MinMaxScaler(feature_range=(0, 1))
+    scaled_data = scaler.fit_transform(quantity_data)
 
-y_inv = scaler.inverse_transform(y.reshape(-1, 1))
-predictions_inv = scaler.inverse_transform(predictions)
+    time_step = 10
+    X, y = create_dataset(scaled_data, time_step)
+    X = X.reshape(X.shape[0], X.shape[1], 1)
 
-rmse = math.sqrt(mean_squared_error(y_inv, predictions_inv))
-st.metric("Model RMSE", f"{rmse:.2f} units")
+    predictions = lstm_model.predict(X)
 
-st.subheader("📉 Actual vs Predicted Usage")
-fig, ax = plt.subplots(figsize=(12, 6))
-ax.plot(data.index[time_step+1:], y_inv, label="Actual Usage")
-ax.plot(data.index[time_step+1:], predictions_inv, label="Predicted Usage", alpha=0.7)
-ax.legend()
-st.pyplot(fig)
+    y_inv = scaler.inverse_transform(y.reshape(-1, 1))
+    predictions_inv = scaler.inverse_transform(predictions)
+
+    rmse = math.sqrt(mean_squared_error(y_inv, predictions_inv))
+    st.metric("Model RMSE", f"{rmse:.2f} units")
+
+    st.subheader("📉 Actual vs Predicted Usage")
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.plot(data.index[time_step+1:], y_inv, label="Actual Usage")
+    ax.plot(data.index[time_step+1:], predictions_inv, label="Predicted Usage", alpha=0.7)
+    ax.legend()
+    st.pyplot(fig)
+else:
+    st.error("⚠️ No LSTM model could be loaded. Predictions cannot be generated.")
 
 # ------ Data Statistics ------
 st.header("📊 Data Insights")
