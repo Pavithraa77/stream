@@ -38,7 +38,7 @@ def load_anomaly_model():
 
 @st.cache_resource
 def load_lstm_model():
-x    with open("lstm_model1.pkl", "rb") as f:
+    with open("lstm_model1.pkl", "rb") as f:
         lstm_model = pickle.load(f)
 
     return lstm_model
