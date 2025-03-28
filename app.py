@@ -29,7 +29,7 @@ def load_data():
 # ------ Model Loading ------
 @st.cache_resource
 def load_anomaly_model():
-    return joblib.load("anomaly_model.pkl")
+    return joblib.load("model.joblib")
 
 @st.cache_resource
 def load_lstm_model():
