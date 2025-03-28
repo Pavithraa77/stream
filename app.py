@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
+import pickle
 import math
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -37,7 +38,10 @@ def load_anomaly_model():
 
 @st.cache_resource
 def load_lstm_model():
-    return joblib.load("lstm_model1.pkl")
+x    with open("lstm_model1.pkl", "rb") as f:
+        lstm_model = pickle.load(f)
+
+    return lstm_model
 
 # ------ Streamlit UI ------
 st.title("💧 Water Usage Monitoring Dashboard")
