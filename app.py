@@ -9,6 +9,10 @@ from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 from tensorflow.keras.models import load_model
 
+st.cache_resource.clear()
+st.cache_data.clear()
+
+
 # ------ Helper Functions ------
 def create_dataset(data, time_step=1):
     dataX, dataY = [], []
