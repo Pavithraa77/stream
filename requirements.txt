@@ -1,11 +1,10 @@
-pickle
 streamlit
-pandas
 numpy
-matplotlib
-seaborn
-scikit-learn
+pandas
 tensorflow
+keras
 joblib
-boto3
-openpyxl
+boto3  # For accessing S3
+scikit-learn  # If you're using preprocessing or anomaly detection
+matplotlib  # If you're plotting anything
+seaborn  # Optional for better plots
