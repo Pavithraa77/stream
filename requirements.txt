@@ -1,3 +1,4 @@
+pickle
 streamlit
 pandas
 numpy
