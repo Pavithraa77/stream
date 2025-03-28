@@ -1,8 +1,6 @@
 import streamlit as st
 import pandas as pd
 import joblib
-import boto3
-import io
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.ensemble import IsolationForest
@@ -12,13 +10,9 @@ from sklearn.ensemble import IsolationForest
 def load_model():
     return joblib.load("model.joblib")
 
-# Load data from S3
+# Load data from file
 def load_data():
-    bucket_name = "wateranomaly"
-    file_name = "filtered_data.xlsx"
-    s3 = boto3.client("s3")
-    obj = s3.get_object(Bucket=bucket_name, Key=file_name)
-    df = pd.read_excel(io.BytesIO(obj["Body"].read()))
+    df = pd.read_excel("filtered_data.xlsx")
     return df
 
 # Preprocess data
