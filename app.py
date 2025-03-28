@@ -33,7 +33,7 @@ def load_anomaly_model():
 
 @st.cache_resource
 def load_lstm_model():
-    return joblib.load("lstm_model.pkl")
+    return joblib.load("lstm_model1.pkl")
 
 # ------ Streamlit UI ------
 st.title("💧 Water Usage Monitoring Dashboard")
