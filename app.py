@@ -1,128 +1,65 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import joblib
-import pickle
-import math
-import traceback
 import matplotlib.pyplot as plt
 import seaborn as sns
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import mean_squared_error
-from tensorflow.keras.models import load_model
+from sklearn.ensemble import IsolationForest
 
-# Clear cache to prevent conflicts
-st.cache_resource.clear()
-st.cache_data.clear()
-
-# ------ Helper Functions ------
-def create_dataset(data, time_step=1):
-    dataX, dataY = [], []
-    for i in range(len(data) - time_step - 1):
-        dataX.append(data[i:(i + time_step), 0])
-        dataY.append(data[i + time_step, 0])
-    return np.array(dataX), np.array(dataY)
-
-# ------ Data Loading & Preprocessing ------
-@st.cache_data
-def load_data():
-    df = pd.read_csv("cleaned_output.csv")
-    df.rename(columns={"Column 1": "date", "Column 20": "usage"}, inplace=True)
-    df["date"] = pd.to_datetime(df["date"], errors="coerce")
-    df.set_index("date", inplace=True)
-    return df.dropna()
-
-# ------ Model Loading ------
+# Load model
 @st.cache_resource
-def load_anomaly_model():
+def load_model():
     return joblib.load("model.joblib")
 
-@st.cache_resource
-def load_lstm_model():
-    try:
-        # Attempt to load the pickle model
-        with open("lstm_model1.pkl", "rb") as f:
-            lstm_model = pickle.load(f)
-        st.success("✅ LSTM model (pickle) loaded successfully!")
-    except Exception as e:
-        st.error(f"❌ Error loading LSTM pickle model: {e}")
-        st.text(traceback.format_exc())
-        st.warning("⚠️ Attempting to load TensorFlow H5 model instead...")
-        try:
-            lstm_model = load_model("lstm_model.h5")
-            st.success("✅ LSTM model (H5) loaded successfully!")
-        except Exception as e:
-            st.error(f"❌ Failed to load H5 model as well: {e}")
-            st.text(traceback.format_exc())
-            return None
-    return lstm_model
+# Load data from file
+def load_data():
+    df = pd.read_excel("filtered_data.xlsx")
+    return df
 
-# ------ Streamlit UI ------
-st.title("💧 Water Usage Monitoring Dashboard")
+# Preprocess data
+def preprocess_data(df):
+    df.rename(columns={"Date": "date", "Water Used": "usage"}, inplace=True)
+    df["date"] = pd.to_datetime(df["date"], errors="coerce", dayfirst=True)
+    df = df.dropna(subset=["date"])
+    df = df[df["usage"] >= 0]
+    df.set_index("date", inplace=True)
+    return df
 
+# Detect anomalies
+def detect_anomalies(df, model):
+    df = df.copy()
+    df["usage_scaled"] = (df["usage"] - df["usage"].mean()) / df["usage"].std()
+    df["anomaly_score"] = model.predict(df[["usage_scaled"]])
+    df["anomaly"] = df["anomaly_score"].apply(lambda x: 1 if x == -1 else 0)
+    return df
+
+# Streamlit UI
+st.title("💧 Water Usage Anomaly Detection")
+
+# Load data & model
 data = load_data()
+data = preprocess_data(data)
+model = load_model()
+data = detect_anomalies(data, model)
 
-# ------ Anomaly Detection ------
-st.header("🔍 Anomaly Detection")
-anomaly_model = load_anomaly_model()
-data["usage_scaled"] = (data["usage"] - data["usage"].mean()) / data["usage"].std()
-data["anomaly_score"] = anomaly_model.predict(data[["usage_scaled"]])
-data["anomaly"] = data["anomaly_score"].apply(lambda x: 1 if x == -1 else 0)
+# Show raw data
+st.subheader("📊 Raw Data")
+st.dataframe(data)
 
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("📊 Recent Data")
-    st.dataframe(data.tail())
-with col2:
-    st.subheader("⚠️ Detected Anomalies")
-    st.dataframe(data[data["anomaly"] == 1].tail())
+# Show statistics
+st.subheader("📈 Data Insights")
+st.write(data.describe())
 
-st.subheader("📈 Usage with Anomalies")
+# Show anomalies
+st.subheader("⚠️ Detected Anomalies")
+st.dataframe(data[data["anomaly"] == 1])
+
+# Plot anomalies
+st.subheader("📉 Water Usage with Anomalies")
 fig, ax = plt.subplots(figsize=(12, 6))
-sns.lineplot(x=data.index, y=data["usage"], ax=ax, label="Normal Usage")
-anomaly_points = data[data["anomaly"] == 1]
-ax.scatter(anomaly_points.index, anomaly_points["usage"], color="red", label="Anomalies", marker="o")
+sns.lineplot(x=data.index, y=data["usage"], ax=ax, label="Water Usage")
+ax.scatter(data.index[data["anomaly"] == 1], data["usage"][data["anomaly"] == 1], color="red", label="Anomaly", marker="o")
+ax.set_xlabel("Date")
+ax.set_ylabel("Water Usage")
+ax.set_title("Water Usage Anomaly Detection")
 ax.legend()
 st.pyplot(fig)
-
-# ------ LSTM Prediction ------
-st.header("🔮 Usage Prediction (LSTM)")
-
-lstm_model = load_lstm_model()
-if lstm_model:
-    quantity_data = data[["usage"]].values
-    scaler = MinMaxScaler(feature_range=(0, 1))
-    scaled_data = scaler.fit_transform(quantity_data)
-
-    time_step = 10
-    X, y = create_dataset(scaled_data, time_step)
-    X = X.reshape(X.shape[0], X.shape[1], 1)
-
-    predictions = lstm_model.predict(X)
-
-    y_inv = scaler.inverse_transform(y.reshape(-1, 1))
-    predictions_inv = scaler.inverse_transform(predictions)
-
-    rmse = math.sqrt(mean_squared_error(y_inv, predictions_inv))
-    st.metric("Model RMSE", f"{rmse:.2f} units")
-
-    st.subheader("📉 Actual vs Predicted Usage")
-    fig, ax = plt.subplots(figsize=(12, 6))
-    ax.plot(data.index[time_step+1:], y_inv, label="Actual Usage")
-    ax.plot(data.index[time_step+1:], predictions_inv, label="Predicted Usage", alpha=0.7)
-    ax.legend()
-    st.pyplot(fig)
-else:
-    st.error("⚠️ No LSTM model could be loaded. Predictions cannot be generated.")
-
-# ------ Data Statistics ------
-st.header("📊 Data Insights")
-col1, col2 = st.columns(2)
-with col1:
-    st.subheader("Basic Statistics")
-    st.write(data[["usage"]].describe())
-with col2:
-    st.subheader("Distribution")
-    fig, ax = plt.subplots()
-    sns.histplot(data["usage"], kde=True, ax=ax)
-    st.pyplot(fig)
