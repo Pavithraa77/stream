@@ -1,11 +1,11 @@
 import streamlit as st
- import pandas as pd
- import joblib
- import boto3
- import io
- import matplotlib.pyplot as plt
- import seaborn as sns
- from sklearn.ensemble import IsolationForest
+import pandas as pd
+import joblib
+import boto3
+import io
+import matplotlib.pyplot as plt
+import seaborn as sns
+from sklearn.ensemble import IsolationForest
  @@ -12,60 +10,56 @@
  def load_model():
      return joblib.load("model.joblib")
