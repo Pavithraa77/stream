@@ -5,8 +5,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 import tensorflow as tf
-from sklearn.ensemble import IsolationForest
 from tensorflow.keras.models import load_model
+from sklearn.ensemble import IsolationForest
 from sklearn.preprocessing import MinMaxScaler
 
 # Load Isolation Forest model
@@ -22,9 +22,9 @@ def load_lstm_model():
 # Load dataset
 @st.cache_data
 def load_data():
-    df = pd.read_csv("cleaned_output.csv")
-    df.rename(columns={'Column 1': 'date', 'Column 20': 'quantity'}, inplace=True)
-    df['date'] = pd.to_datetime(df['date'])
+    df = pd.read_excel("filtered_data.xlsx")
+    df.rename(columns={'Date': 'date', 'Water Used': 'quantity'}, inplace=True)
+    df['date'] = pd.to_datetime(df['date'], errors="coerce")
     df.set_index('date', inplace=True)
     df = df.dropna()
     return df
